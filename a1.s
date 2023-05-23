@@ -87,78 +87,119 @@
 .text
 # Use Risc-V assembly language
 main:
-    # Tamanho do display
-    li s0, 12
-    li s1, 16
-
     # 223694
     call Dois
-    li a0, 2000
+    li a0, 50
     call Pausa
 
     call Dois
-    li a0, 2000
+    li a0, 50
     call Pausa
 
     call Tres  
-    li a0, 2000  
+    li a0, 50  
     call Pausa
 
     call Seis  
-    li a0, 2000  
+    li a0, 50  
     call Pausa
 
     call Nove  
-    li a0, 2000  
+    li a0, 50  
     call Pausa
 
     call Quatro
-    li a0, 2000    
+    li a0, 50    
     call Pausa
 
-    # Usa mascara para representar movimento
-    # Vai de coluna em coluna trocando por zero ate limpar a tela
+    # Usa mascara de 16 bits para representar movimento
+    # Comeca tudo escondido na esquerda
+    # Faz 2 for, um pra carregar na esquerda e outro pra direita
+    # Usa um registrador pra fazer o offset do shift
+    # Em cada linha a cada iteracao, faz and com offset e depois carrega de novo o valor da memoria pra voltar pro normal
+    # Atualiza o offset a cada iteracao
+    # Faz shift pra esquerda para mostrar digitos uma coluna por vez
 
 fimMain:
 addi a0, zero, 10
 ecall   # Encerra a execução do programa
 
 Imprime_tela:
+    addi sp, sp, -12
+    sw s0, 0(sp)
+    sw s1, 4(sp)
+    sw s2, 8(sp)
     # a0 recebe o endereço do primeiro elemento do array
     mv t0, a0
-    li a0, 0x110
-    li a1, 0
 
-    imprime:
-        # carrega conteudo da linha em a2
-        lh a2, 0(t0)
-        addi t0, t0, 2
+    li s0, 16
+    for_movimento_direita:  
+        li s1, 11 # imprime comecando na ultima linha e diminuindo (para nao ficar de cabeca para baixo)      
+        imprime_direita:
+            # carrega conteudo da linha em a2
+            # a1 é linha atual
+            lhu a2, 0(t0)
+            srl a2, a2, s0
 
-        ecall
-        # a1 é linha atual, s0 é numero de linhas declarado na main
-        addi a1, a1, 1
-        blt a1, s0, imprime
+            li a0, 0x110
+            mv a1, s1
+            ecall
+
+            addi t0, t0, 2
+            addi s1, s1, -1
+            bgt s1, zero, imprime_direita
+
+        addi t0, t0, -22 # Volta pro inicio do vetor
+        addi s0, s0, -1
+        bgt s0, zero, for_movimento_direita
+
+    li s0, 0
+    li s2, 16
+    for_movimento_esquerda:
+        li s1, 11
+        imprime_esquerda:
+            # carrega conteudo da linha em a2
+            # a1 é linha atual
+            lhu a2, 0(t0)
+            sll a2, a2, s0
+
+            li a0, 0x110
+            mv a1, s1
+            ecall
+
+            addi t0, t0, 2
+            addi s1, s1, -1
+            bgt s1, zero, imprime_esquerda
+
+        addi t0, t0, -22 # Volta pro inicio do vetor
+        addi s0, s0, 1
+        blt s0, s2, for_movimento_esquerda
+
+    addi sp, sp, 12
+    lw s2, 8(sp)
+    lw s1, 4(sp)
+    lw s0, 0(sp)
     ret
 # Executa n vezes o loop; n armazenado em a0
 Pausa:
     # Pilha armazena endereco de retorno
-    addi sp, sp, -4
+    addi sp, sp, -8
+    sw   s0, 4(sp)
     sw ra, 0(sp)
-
-    mv t1, a0
-    la a0, pausa
-
-    call Imprime_tela
+    mv s0, a0
 
     contador_pausa:
-        addi t1, t1, -1
-        addi zero, zero, 0        
+        addi s0, s0, -1
+        bne s0, zero, contador_pausa
 
-        bne t1, zero, contador_pausa
+    #la a0, pausa
+
+    #call Imprime_tela
 
     # Recupera endereco de retorno da pilha
     lw ra, 0(sp)
-    addi sp, sp, 4
+    lw s0, 4(sp)
+    addi sp, sp, 8
     ret
 
 Dois:
