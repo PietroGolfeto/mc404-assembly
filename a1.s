@@ -1,19 +1,8 @@
+# Pietro Grazzioli Golfeto
+# RA 223694
+
 .data
 # Cada digito eh representado por um array de 12 shorts (12x16)
-    pausa:
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-        .half 0x00000000
-
     dois: 
         .half 0b0000011100000000
         .half 0b0000110110000000
@@ -26,7 +15,7 @@
         .half 0b0000110000000000
         .half 0b0001100000000000
         .half 0b0001111111000000
-        .half 0b0000000000000000
+        .half 0b0001111111000000
 
     tres:
         .half 0b0000011100000000
@@ -54,7 +43,7 @@
         .half 0b0000000011000000
         .half 0b0000000011000000
         .half 0b0000000011000000
-        .half 0b0000000000000000
+        .half 0b0000000011000000
 
     seis:
         .half 0b0000000111110000
@@ -68,7 +57,7 @@
         .half 0b0000100001000000
         .half 0b0000110111000000
         .half 0b0000011110000000
-        .half 0b0000000000000000
+        .half 0b0000001100000000
 
     nove:
         .half 0b0000001100000000
@@ -82,43 +71,42 @@
         .half 0b0000000001100000
         .half 0b0001100011100000
         .half 0b0001111111000000
-        .half 0b0000000000000000
+        .half 0b0000011100000000
 
 .text
-# Use Risc-V assembly language
 main:
     # 223694
     call Dois
-    li a0, 50
+    li a0, 25
     call Pausa
 
     call Dois
-    li a0, 50
+    li a0, 25
     call Pausa
 
     call Tres  
-    li a0, 50  
+    li a0, 25  
     call Pausa
 
     call Seis  
-    li a0, 50  
+    li a0, 25  
     call Pausa
 
     call Nove  
-    li a0, 50  
+    li a0, 25  
     call Pausa
 
     call Quatro
-    li a0, 50    
+    li a0, 25    
     call Pausa
 
     # Usa mascara de 16 bits para representar movimento
     # Comeca tudo escondido na esquerda
-    # Faz 2 for, um pra carregar na esquerda e outro pra direita
+    # Faz 2 lacos de repeticao, um pra carregar da esquerda pro meio e outro do meio pra direita
     # Usa um registrador pra fazer o offset do shift
-    # Em cada linha a cada iteracao, faz and com offset e depois carrega de novo o valor da memoria pra voltar pro normal
+    # Em cada linha apos cada iteracao, carrega de novo o valor da memoria pra voltar pro normal
     # Atualiza o offset a cada iteracao
-    # Faz shift pra esquerda para mostrar digitos uma coluna por vez
+    # Mostra digitos movimentando uma coluna por vez
 
 fimMain:
 addi a0, zero, 10
@@ -147,9 +135,9 @@ Imprime_tela:
 
             addi t0, t0, 2
             addi s1, s1, -1
-            bgt s1, zero, imprime_direita
+            bge s1, zero, imprime_direita
 
-        addi t0, t0, -22 # Volta pro inicio do vetor
+        addi t0, t0, -24 # Volta pro inicio do vetor
         addi s0, s0, -1
         bgt s0, zero, for_movimento_direita
 
@@ -169,9 +157,9 @@ Imprime_tela:
 
             addi t0, t0, 2
             addi s1, s1, -1
-            bgt s1, zero, imprime_esquerda
+            bge s1, zero, imprime_esquerda
 
-        addi t0, t0, -22 # Volta pro inicio do vetor
+        addi t0, t0, -24 # Volta pro inicio do vetor
         addi s0, s0, 1
         blt s0, s2, for_movimento_esquerda
 
@@ -191,10 +179,6 @@ Pausa:
     contador_pausa:
         addi s0, s0, -1
         bne s0, zero, contador_pausa
-
-    #la a0, pausa
-
-    #call Imprime_tela
 
     # Recupera endereco de retorno da pilha
     lw ra, 0(sp)
