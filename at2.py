@@ -22,7 +22,6 @@ for i in range(4):
     registradores[f"t{i + 3}"] = 28 + i
 
 
-# Funções para executar instruçoes poderiam estar em outro arquivo
 def instrucao_I(lista):
     match lista[0]:
         case "addi":
@@ -36,16 +35,15 @@ def instrucao_I(lista):
             opcode = "0000011"
         case "ret":
             # Implementação de jalr ( jalr zero, 0(ra) )
+            return instrucao_I(["jalr", "zero", "ra", "0"])
+        case "jalr":
             func3 = "000"
             opcode = "1100111"
-            lista.append("zero")
-            lista.append("ra")
-            lista.append("0")
 
     # Imediato é o terceiro elemento da lista exceto se for lw    
     num_decimal = int(lista[3]) if lista[3].isdigit() else int(lista[2])
     # Converte em hexadecimal e adiciona prefixo 0x
-    num_hex = "0x" + format(num_decimal, "03x")
+    num_hex = "0x" + format(num_decimal, "03x").upper()
 
     rd_string = lista[1]
     rd = format(registradores[rd_string], "05b")
@@ -55,10 +53,10 @@ def instrucao_I(lista):
 
     final_string = rs1 + func3 + rd + opcode
     final_hex = hex(int(final_string, 2))
+
     # Completa com zeros à esquerda para ter 8 caracteres (3 do num_hex + 5 do final_hex)
     # Coloca em maiusculo, exceto o prefixo 0x
     final = final_hex[2:].zfill(5).upper()
-
     return num_hex + final
 
 
@@ -115,10 +113,10 @@ def instrucao_S(lista):
     # Formatação da instrução do tipo S em binário em Assembly Risc-V
     final_string = imm7 + rs2 + rs1 + func3 + imm5 + opcode
     final_hex = hex(int(final_string, 2))
+
     # Completa com zeros à esquerda para ter 8 caracteres
     # Coloca em maiusculo, exceto o prefixo 0x
     final = final_hex[:2] + final_hex[2:].zfill(8).upper()
-
     return final
 
 
@@ -152,23 +150,98 @@ def instrucao_SB(lista):
     # Formatação da instrução do tipo B em binário em Assembly Risc-V
     final_string = imm12 + imm10_5 + rs2 + rs1 + func3 + imm4_1 + imm11 + opcode
     final_hex = hex(int(final_string, 2))
+
     # Completa com zeros à esquerda para ter 8 caracteres
     # Coloca em maiusculo, exceto o prefixo 0x
     final = final_hex[:2] + final_hex[2:].zfill(8).upper()
-
     return final
 
 
 def instrucao_U(lista):
-    pass
+    match lista[0]:
+        case "lui":
+            opcode = "0110111"
+        case "auipc":
+            opcode = "0010111"
+
+    num_decimal = int(lista[2])
+    # Converte em binário utilizando complemento de dois com 20 bits
+    tamanho = 20
+    imm20 = format(num_decimal & ((1 << tamanho) - 1), f"0{tamanho}b").zfill(tamanho)
+
+    rd_string = lista[1]
+    rd = format(registradores[rd_string], "05b")
+
+    # Formatação da instrução do tipo U em binário em Assembly Risc-V
+    final_string = imm20 + rd + opcode
+    final_hex = hex(int(final_string, 2))
+
+    # Completa com zeros à esquerda para ter 8 caracteres
+    # Coloca em maiusculo, exceto o prefixo 0x
+    final = final_hex[:2] + final_hex[2:].zfill(8).upper()
+    return final
 
 
 def instrucao_J(lista):
-    pass
+    match lista[0]:
+        case "call":
+            pass
+
+    # Instrução call é composta por duas instruções: auipc e jalr
+    pos_inicial = 1000
+    num_decimal = int(lista[1])
+
+    offset = num_decimal - pos_inicial
+    # Converte em binário utilizando complemento de dois com 32 bits
+    tamanho = 32
+    num_bin = format(offset & ((1 << tamanho) - 1), f"0{tamanho}b").zfill(tamanho)
+
+    # Divide o número binário em dois imediatos, um de 20 bits e outro de 12 bits
+    imm20 = num_bin[:20]
+    # Transforma imm20 em string representando inteiro de base dez no argumento da instrução auipc
+    # Primeira instrução de call é auipc 
+    # Simulador Venus utliza o registrador t1 para armazenar o endereço de salto
+    auipc = mapa["auipc"](["auipc", "t1", str(int(imm20, 2))])
+
+    imm12 = num_bin[20:]
+    # Segunda instrução de call é jalr
+    # Transforma imm12 em string representando inteiro de base dez no argumento da instrução jalr
+    # Endereço de salto é o armazenado no registrador t1 somado ao imediato de 12 bits
+    # Registrador ra é utilizado para armazenar o endereço de retorno
+    jalr = mapa["jalr"](["jalr", "ra", "t1", str(int(imm12, 2))])
+
+    return auipc + "\n" + jalr
 
 
 def instrucao_dupla(lista):
-    pass
+    match lista[0]:
+        case "li":
+            pass
+    
+    # Instrução li pode ser composta por duas instruções, dependendo do tamanho do imediato
+    # Se o imediato for maior que 12 signed bits, é necessário também utilizar a instrução lui
+    # Caso contrário, apenas a instrução addi é necessária
+    num_decimal = int(lista[2])
+    if (num_decimal > ((1 << 11) - 1) or num_decimal < -2048):
+        # Converte em binário utilizando complemento de dois com 32 bits
+        tamanho = 32
+        num_bin = format(num_decimal & ((1 << tamanho) - 1), f"0{tamanho}b").zfill(tamanho)
+
+        # Divide o número binário em dois imediatos, um de 20 bits e outro de 12 bits
+        imm20 = num_bin[:20]
+        # Transforma imm20 em string representando inteiro de base dez no argumento da instrução lui
+        lui = mapa["lui"](["lui", "t1", str(int(imm20, 2))])
+
+        imm12 = num_bin[20:]
+        # Transforma imm12 em string representando inteiro de base dez no argumento da instrução addi
+        addi = mapa["addi"](["addi", lista[1], "t1", str(int(imm12, 2))])
+
+        return lui + "\n" + addi
+    else:
+        # Transforma num_decimal em string representando inteiro de base dez no argumento da instrução addi
+        addi = mapa["addi"](["addi", lista[1], "zero", str(num_decimal)])
+
+        return addi
 
 
 # Dicionario que mapeia as instrucoes para as funcoes
@@ -176,14 +249,17 @@ mapa = {
     "addi": instrucao_I, #OK
     "slli": instrucao_I, #OK
     "xor": instrucao_R, #OK
-    "call": instrucao_J,
-    "ret": instrucao_I, #OK
+    "call": instrucao_J, #OK
+    "ret": instrucao_I, #jalr #OK
+    "jalr": instrucao_I, #OK
     "beq": instrucao_SB, #OK
     "lw": instrucao_I, #OK
     "sw": instrucao_S, #OK
     "mul": instrucao_R, #OK
-    "lui": instrucao_U,
-    "li": instrucao_dupla
+    "lui": instrucao_U, #OK
+    "auipc": instrucao_U, #OK
+    "li": instrucao_dupla # FALTA EXTENSÃO DE SINAL QUANDO QUEBRAR EM 2 INSTRUÇÕES
+    # SE BIT 12 FOR 1, EXTENSÃO DE SINAL
 }
 
 
