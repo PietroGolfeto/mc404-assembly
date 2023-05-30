@@ -30,6 +30,9 @@ def instrucao_I(lista):
         case "slli":
             func3 = "001"
             opcode = "0010011"
+            if (int(lista[3]) > 31 or int(lista[3]) < 0):
+                print("Shift invalido")
+                return
         case "lw":
             func3 = "010"
             opcode = "0000011"
@@ -204,8 +207,12 @@ def instrucao_J(lista):
     imm20 = num_bin[:20]
     # Transforma imm20 em string representando inteiro de base dez no argumento da instrução auipc
     # Primeira instrução de call é auipc
-    # Simulador Venus utliza o registrador t1 para armazenar o endereço de salto
-    auipc = mapa["auipc"](["auipc", "t1", str(int(imm20, 2))])
+    # Simulador Venus utliza o registrador t1 para armazenar o endereço de salto e sempre imprime a instrução auipc
+    # Essa implementação não imprime a instrução auipc se não for necessária
+    if int(imm20) == 0:
+        print("Nao precisa de instrucao auipc")
+    else: 
+        auipc = mapa["auipc"](["auipc", "t1", str(int(imm20, 2))])
 
     imm12 = num_bin[20:]
     # Segunda instrução de call é jalr
@@ -214,7 +221,10 @@ def instrucao_J(lista):
     # Registrador ra é utilizado para armazenar o endereço de retorno
     jalr = mapa["jalr"](["jalr", "ra", "t1", str(int(imm12, 2))])
 
-    return auipc, jalr
+    try:
+        return auipc, jalr
+    except:
+        return jalr
 
 
 def instrucao_dupla(lista):
